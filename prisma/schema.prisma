@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Website {
+  id          String   @id @default(cuid())
+  name        String
+  url         String   @unique
+  email       String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Current status fields
+  status          String   @default("unknown") // "up", "down", "unknown"
+  lastChecked     DateTime?
+  responseTime    Int?     // in milliseconds
+  lastDowntime    DateTime?
+  
+  // Relations
+  downtimeLogs    DowntimeLog[]
+  
+  @@map("websites")
+}
+
+model DowntimeLog {
+  id          String   @id @default(cuid())
+  websiteId   String
+  startTime   DateTime
+  endTime     DateTime?
+  reason      String?  // Error message or reason for downtime
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  
+  @@map("downtime_logs")
+}
