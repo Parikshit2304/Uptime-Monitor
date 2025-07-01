@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "iamparikshit2304@gmail.com",
+    user: "",
     pass: process.env.EMAIL_PASS, // Use App Password from Gmail
   },
 });
@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
  */
 const sendAlertEmail = async (siteUrl,to,subject,text) => {
   const mailOptions = {
-    from: "iamparikshit2304@gmail.com",
+    from: "",
     to, // You can make this dynamic
     subject,
     text
