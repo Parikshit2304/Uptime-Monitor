@@ -16,8 +16,8 @@ function App() {
 
   useEffect(() => {
     fetchWebsites();
-    // Refresh data every 2 seconds
-    const interval = setInterval(fetchWebsites, 2000);
+    // Refresh data every 10 seconds
+    const interval = setInterval(fetchWebsites, 10*1000);
     return () => clearInterval(interval);
   }, []);
 

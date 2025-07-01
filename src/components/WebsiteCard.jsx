@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Globe, Clock, MoreVertical, Edit, Trash2, ExternalLink, Pause, Play, Activity, AlertTriangle } from 'lucide-react';
+import axios from 'axios';
 
 function WebsiteCard({ website, onEdit, onDelete }) {
   const [showMenu, setShowMenu] = useState(false);
-  
+
   const {
+    id,
     name,
     url,
     status,
@@ -15,35 +17,53 @@ function WebsiteCard({ website, onEdit, onDelete }) {
     isActive
   } = website;
 
-  // Generate 30-minute tick data (30 ticks representing 1 minute each)
-  const uptimeTicks = useMemo(() => {
-    const ticks = [];
-    const baseUptime = uptimePercentage || 0;
-    
-    for (let i = 0; i < 30; i++) {
-      // Simulate some variation in uptime data
-      const variation = (Math.random() - 0.5) * 10; // ±5% variation
-      const tickUptime = Math.max(0, Math.min(100, baseUptime + variation));
-      
-      // Determine status based on uptime percentage
-      let tickStatus = 'up';
-      if (tickUptime < 50) tickStatus = 'down';
-      else if (tickUptime < 95) tickStatus = 'degraded';
-      
-      // Add some randomness for recent ticks if website is currently down
-      if (status === 'down' && i >= 25) {
-        tickStatus = Math.random() > 0.3 ? 'down' : 'degraded';
+  // // Generate 30-minute tick data (30 ticks representing 1 minute each)
+  // const uptimeTicks = useMemo(() => {
+  //   const ticks = [];
+  //   const baseUptime = uptimePercentage || 0;
+
+  //   for (let i = 0; i < 30; i++) {
+  //     // // Simulate some variation in uptime data
+  //     // const variation = (Math.random() - 0.5) * 10; // ±5% variation
+  //     // const tickUptime = Math.max(0, Math.min(100, baseUptime + variation));
+
+  //     // Determine status based on uptime percentage
+  //     const tickStatus = website.status;
+  //     // if (tickUptime < 50) tickStatus = 'down';
+  //     // else if (tickUptime < 95) tickStatus = 'degraded';
+
+  //     // // Add some randomness for recent ticks if website is currently down
+  //     // if (status === 'down' && i >= 25) {
+  //     //   tickStatus = Math.random() > 0.3 ? 'down' : 'degraded';
+  //     // }
+
+  //     ticks.push({
+  //       id: i,
+  //       status: tickStatus,
+  //       uptime: tickUptime
+  //     });
+  //   }
+
+  //   return ticks;
+  // }, [uptimePercentage, status]);
+
+  const [uptimeTicks, setUptimeTicks] = useState([]);
+  useEffect(() => {
+    const fetchTicks = async () => {
+      try {
+        const res = await axios.get(`/api/websites/${id}/ticks`);
+        setUptimeTicks(res.data);
+      } catch (error) {
+        console.error("Failed to load ticks", error);
       }
-      
-      ticks.push({
-        id: i,
-        status: tickStatus,
-        uptime: tickUptime
-      });
-    }
-    
-    return ticks;
-  }, [uptimePercentage, status]);
+    };
+
+    fetchTicks(); // initial
+    const interval = setInterval(fetchTicks, 60 * 1000); // every minute
+    return () => clearInterval(interval);
+  }, [id]);
+
+
 
 
   const getStatusColor = (status) => {
@@ -76,7 +96,7 @@ function WebsiteCard({ website, onEdit, onDelete }) {
     const now = new Date();
     const checked = new Date(date);
     const diff = now - checked;
-    
+
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -105,9 +125,9 @@ function WebsiteCard({ website, onEdit, onDelete }) {
               {!isActive && ' (Paused)'}
             </span>
           </div>
-          
+
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 rounded-xl hover:bg-white/50 transition-colors group-hover:bg-white/70"
             >
@@ -152,9 +172,9 @@ function WebsiteCard({ website, onEdit, onDelete }) {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-xl font-bold text-gray-900 truncate mb-1" title={name}>{name}</h3>
-            <a 
-              href={url} 
-              target="_blank" 
+            <a
+              href={url}
+              target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-2 group/link"
               title={url}
@@ -166,18 +186,23 @@ function WebsiteCard({ website, onEdit, onDelete }) {
         </div>
 
         {/* 30-Minute Uptime Visualization */}
-        <div className="mb-6">
+
+        <div className='mb-6'>
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-700">Last 30 minutes</span>
             <span className="text-xs text-gray-500">Each bar = 1 min</span>
           </div>
-          <div className="flex items-end space-x-1 h-8">
-            {uptimeTicks.map((tick) => (
+          <div className="flex items-end space-x-1.5 h-8 ">
+            {uptimeTicks.map((tick, index) => (
               <div
-                key={tick.id}
-                className={`tick-indicator ${getTickColor(tick.status)} cursor-pointer`}
-                style={{ height: `${Math.max(tick.uptime / 100 * 32, 4)}px` }}
-                title={`${tick.uptime.toFixed(1)}% uptime - ${tick.status}`}
+                key={index}
+                title={`Status: ${tick.status.toUpperCase()} at ${new Date(
+                  tick.timestamp
+                ).toLocaleTimeString()}`}
+                className={`w-1.5 h-9 rounded-md ml-1   ${tick.status === "up" ? "bg-green-500"
+                  : tick.status === "down" ? "bg-red-500"
+                    : "bg-gray-400"
+                  }`}
               />
             ))}
           </div>
@@ -187,6 +212,7 @@ function WebsiteCard({ website, onEdit, onDelete }) {
           </div>
         </div>
 
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4">
@@ -195,21 +221,21 @@ function WebsiteCard({ website, onEdit, onDelete }) {
             </div>
             <div className="text-xs text-green-700 font-medium">30-day uptime</div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4">
             <div className="text-2xl font-bold text-blue-600 mb-1 flex items-center">
               {responseTime ? `${responseTime}ms` : 'N/A'}
             </div>
             <div className="text-xs text-blue-700 font-medium">Response time</div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-4">
             <div className="text-2xl font-bold text-orange-600 mb-1">
               {downtimeCount || 0}
             </div>
             <div className="text-xs text-orange-700 font-medium">Incidents (30d)</div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-4">
             <div className="text-2xl font-bold text-purple-600 mb-1">
               {formatLastChecked(lastChecked)}
@@ -227,11 +253,10 @@ function WebsiteCard({ website, onEdit, onDelete }) {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div
-                className={`h-3 rounded-full transition-all duration-1000 ${
-                  uptimePercentage >= 99 ? 'bg-gradient-to-r from-green-400 to-green-600' :
-                  uptimePercentage >= 95 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' : 
-                  'bg-gradient-to-r from-red-400 to-red-600'
-                }`}
+                className={`h-3 rounded-full transition-all duration-1000 ${uptimePercentage >= 99 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                  uptimePercentage >= 95 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                    'bg-gradient-to-r from-red-400 to-red-600'
+                  }`}
                 style={{ width: `${Math.max(uptimePercentage, 2)}%` }}
               />
             </div>

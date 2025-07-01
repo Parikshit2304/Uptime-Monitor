@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { sendEmailAlert } = require('./notification'); // Import the email notification function
+const statusTickCache = new Map();
 const axios = require('axios');
 const statusCache = new Map();
 
@@ -47,7 +48,7 @@ app.get('/api/websites', async (req, res) => {
 // Add new website
 app.post('/api/websites', async (req, res) => {
   try {
-    const { name, url,email } = req.body;
+    const { name, url, email } = req.body;
 
     if (!name || !url || !email) {
       return res.status(400).json({ error: 'Name and URL are required' });
@@ -61,7 +62,7 @@ app.post('/api/websites', async (req, res) => {
     }
 
     const website = await prisma.website.create({
-      data: { name, url ,email}
+      data: { name, url, email }
     });
 
     res.status(201).json(website);
@@ -83,7 +84,7 @@ app.put('/api/websites/:id', async (req, res) => {
 
     const website = await prisma.website.update({
       where: { id },
-      data: { name, url, email,isActive }
+      data: { name, url, email, isActive }
     });
 
     res.json(website);
@@ -120,7 +121,11 @@ app.get('/api/websites/:id/stats', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch statistics' });
   }
 });
-
+app.get('/api/websites/:id/ticks', (req, res) => {
+  const { id } = req.params;
+  const ticks = statusTickCache.get(id) || [];
+  res.json(ticks);
+});
 // Helper function to calculate uptime statistics
 async function calculateUptimeStats(websiteId) {
   const now = new Date();
@@ -150,7 +155,20 @@ async function calculateUptimeStats(websiteId) {
     downtimeCount: downtimeLogs.length
   };
 }
+function updateStatusTicks(websiteId, isUp) {
+  const ticks = statusTickCache.get(websiteId) || [];
 
+  const newTick = {
+    status: isUp ? 'up' : 'down',
+    timestamp: new Date()
+  };
+
+  // Maintain only the last 30 ticks
+  const updated = [...ticks, newTick];
+  if (updated.length > 30) updated.shift();
+
+  statusTickCache.set(websiteId, updated);
+}
 // Monitoring function
 async function checkWebsite(website) {
   try {
@@ -167,6 +185,9 @@ async function checkWebsite(website) {
 
     const responseTime = Date.now() - startTime;
     const isUp = response.status >= 200 && response.status <= 299;
+
+    updateStatusTicks(website.id, isUp);
+
 
     const newStatus = isUp ? 'up' : 'down';
     const previousStatus = statusCache.get(website.id) || 'unknown';
@@ -211,6 +232,8 @@ async function checkWebsite(website) {
       //   `URL: ${website.url} went down at ${new Date().toLocaleString()}`
       // );
     }
+    updateStatusTicks(website.id, false);
+
 
     statusCache.set(website.id, newStatus);
 
@@ -252,7 +275,7 @@ async function handleDowntime(websiteId, reason) {
       data: { lastDowntime: new Date() }
     });
 
-    
+
   }
 }
 
@@ -296,12 +319,12 @@ setInterval(async () => {
   } catch (error) {
     console.error('Error in monitoring loop:', error.message);
   }
-}, 2000); // <-- every 2 seconds
+}, 60 * 1000); // <-- every 2 seconds
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Monitoring service started - checking websites every 2 seconds');
+  console.log('Monitoring service started - checking websites every 1 minute');
 });
 
 // Graceful shutdown
