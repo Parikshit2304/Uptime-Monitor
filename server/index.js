@@ -4,6 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const { sendEmailAlert } = require('./notification'); // Import the email notification function
 const statusTickCache = new Map();
 const axios = require('axios');
+const { sendAlertEmail } = require('./nodemailer');
 const statusCache = new Map();
 
 const app = express();
@@ -199,6 +200,12 @@ async function checkWebsite(website) {
       //   `🚀 ${website.name} is BACK UP`,
       //   `URL: ${website.url} is back up at ${new Date().toLocaleString()}`
       // );
+        await sendAlertEmail(
+        website.url,
+        website.email,
+        `🚀 ${website.name} is BACK UP`,
+        `URL: ${website.url} is back up at ${new Date().toLocaleString()}`
+      );
     }
 
     statusCache.set(website.id, newStatus);
@@ -231,6 +238,12 @@ async function checkWebsite(website) {
       //   `🚨 ${website.name} is DOWN`,
       //   `URL: ${website.url} went down at ${new Date().toLocaleString()}`
       // );
+      await sendAlertEmail(
+        website.url,
+        website.email,
+        `🚨 ${website.name} is DOWN`,
+        `URL: ${website.url} went down at ${new Date().toLocaleString()}`
+      );
     }
     updateStatusTicks(website.id, false);
 

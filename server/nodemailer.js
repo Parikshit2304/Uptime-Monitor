@@ -3,8 +3,11 @@ const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587, // <-- TLS port
+  secure: false,
   auth: {
-    user: "",
+    user: process.env.EMAIL, // Your Gmail address
     pass: process.env.EMAIL_PASS, // Use App Password from Gmail
   },
 });
@@ -15,7 +18,7 @@ const transporter = nodemailer.createTransport({
  */
 const sendAlertEmail = async (siteUrl,to,subject,text) => {
   const mailOptions = {
-    from: "",
+    from: process.env.EMAIL, // Your Gmail address
     to, // You can make this dynamic
     subject,
     text
@@ -23,7 +26,7 @@ const sendAlertEmail = async (siteUrl,to,subject,text) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Alert email sent:", info.response);
+    console.log("✅ Alert email sent: ", info.response);
   } catch (error) {
     console.error("❌ Error sending alert email:", error);
   }
